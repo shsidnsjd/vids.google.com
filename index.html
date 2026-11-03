@@ -7673,6 +7673,7 @@ var GAME = {
                 hp: GAME.p.hp, mhp: GAME.p.mhp,
                 xp: GAME.p.xp, lvl: GAME.p.lvl, nxp: GAME.p.nxp,
                 acd: GAME.p.acd || 0,
+                ach: GAME.p.ach || 0, /* v3.18.0 armor ability charge */
                 armorName: GAME.p.armorName || null,
                 armorLevel: GAME.p.armorLevel || 1,
                 stats: {...GAME.p.stats},
@@ -7724,6 +7725,7 @@ var GAME = {
             this.p.hp = r.p.hp; this.p.mhp = r.p.mhp;
             this.p.xp = r.p.xp; this.p.lvl = r.p.lvl; this.p.nxp = r.p.nxp;
             this.p.acd = r.p.acd || 0;
+            this.p.ach = r.p.ach || 0;
             if(r.p.armorName) {
                 this.p.equipArmor(r.p.armorName, r.p.armorLevel || 1);
             }
@@ -11083,7 +11085,7 @@ function buildArmorPickRow() {
         <div style="flex:1; min-width:0;">
             <div style="font-size:7px; color:#ffd700; letter-spacing:1px; margin-bottom:5px;">&#9670; YOUR ARMOR FOR THE NEXT RUN</div>
             <div style="font-size:11px; color:${a ? RARITY_COLORS[a.rarity] : '#777'}; text-shadow:1px 1px 0 #000;">${name ? name.toUpperCase() : 'NO ARMOR YET'}</div>
-            <div style="font-size:7.5px; color:#aab; margin-top:5px;">${st ? `ARMOR +${st.arm} &#9670; BLOCK ${st.block}%${st.rank ? ' &#9670; RANK ' + st.rank : ''}` : 'Clear arenas to unlock armor'}</div>
+            <div style="font-size:7.5px; color:#aab; margin-top:5px;">${st ? `ARMOR +${st.arm} &#9670; BLOCK ${st.block}%${st.rank ? ' &#9670; RANK ' + st.rank : ''}` : 'Clear arenas to unlock armor'}</div>${name && ((typeof ARMAB !== 'undefined' && ARMAB.nameOf(name)) || '') ? `<div style="font-size:7px; color:#ffd700; margin-top:4px;">ARMOR ABILITY: ${((typeof ARMAB !== 'undefined' && ARMAB.nameOf(name)) || '')} (GOES OFF ON ITS OWN)</div>` : ''}
             <div style="font-size:6.5px; color:#7f8ca8; margin-top:4px;">Only your armor is chosen here - weapons come from level-ups during the run.</div>
         </div>
         <button class="btn btn-gold" style="font-size:8px; padding:9px 12px; margin:0; flex-shrink:0;">CHANGE<br>ARMOR</button>`;
@@ -11116,6 +11118,7 @@ function openArmorPicker() {
                 <div class="ap-name" style="color:${unlocked ? '#fff' : '#888'}">${name}</div>
                 <div style="font-size:6.5px; color:${rc}; letter-spacing:1px;">${a.event ? 'EVENT ' : ''}${RARITY_NAMES[a.rarity]}</div>
                 <div class="ap-stats">ARMOR <b style="color:#ffd700">+${st.arm}</b> &#9670; BLOCK <b style="color:#05d9e8">${st.block}%</b>${st.rank ? `<br><span style="color:#ffd700">${'&#9733;'.repeat(st.rank)}${'&#9734;'.repeat(5 - st.rank)}</span>` : ''}</div>
+                <div style="font-size:6.5px; color:#ffd700; margin-top:4px; letter-spacing:1px;">&#9670; ${((typeof ARMAB !== 'undefined' && ARMAB.nameOf(name)) || '')}</div>
                 <div class="ap-status" style="color:${status[1]}; border-color:${status[1]};">${status[0]}</div>
                 ${unlocked ? '' : `<div class="ap-how">${armorHowToUnlock(name)}</div>`}
             </div>`;
@@ -11909,6 +11912,7 @@ function showDetail(item, owned, type, name) {
                     </div>
                 </div>
                 <div style="color:#7f8ca8; font-size:8px; margin-top:4px; line-height:1.4;">${simulated.desc}</div>
+                ${typeof ARMAB !== 'undefined' ? ARMAB.detailHtml(name, lvl) : ''}
             `;
             Array.from(btnContainer.children).forEach((b, idx) => {
                 if(idx + 1 === lvl) b.classList.add('active');
@@ -14943,7 +14947,7 @@ var RSTATS = {
         const pas = (p.passiveOrder || []).map(id => { const pp = PASSIVES.find(x => x.id === id), lv = (p.passiveLevels || {})[id] || 0; return pp && lv ? `<div title="${pp.name}">${ASSETS[pp.icon] ? `<img src="${ASSETS[pp.icon].src}">` : ''}<b>${lv}</b></div>` : ''; }).join('');
         // one row per weapon you had this run, most damage first; then the hero ability / allies / other
         const rows = Object.keys(r.weps).map(n => ({ n, o: r.weps[n], d: r.dmg[n] || 0 })).sort((a, b) => b.d - a.d);
-        const extra = [['ABILITY', (hero.abil || 'HERO') + ' (ABILITY)', '#4deeea'], ['ALLIES', 'ALLIES', '#00ff66'], ['OTHER', 'OTHER (explosions, thorns...)', '#a8b0c8']].filter(x => (r.dmg[x[0]] || 0) >= 1);
+        const extra = [['ABILITY', (hero.abil || 'HERO') + ' (ABILITY)', '#4deeea'], ['ARMOR', (((typeof ARMAB !== 'undefined' && ARMAB.nameOf(p.armorName)) || '') || 'ARMOR') + ' (ARMOR ABILITY)', '#ffd700'], ['ALLIES', 'ALLIES', '#00ff66'], ['OTHER', 'OTHER (explosions, thorns...)', '#a8b0c8']].filter(x => (r.dmg[x[0]] || 0) >= 1);
         const best = Math.max(1, ...rows.map(x => x.d), ...extra.map(x => r.dmg[x[0]] || 0));
         const wrow = (x) => {
             const W = WEAPONS[x.n] || {}, col = RARITY_COLORS[W.rarity] || '#fff', o = x.o, st = o.st || {};
@@ -19891,7 +19895,7 @@ var TG = {
         d_cd: ['+1 Snap', '+6 Dmg', '+1 Proj', '+1 Snap', 'DEMON +1 Proj'] };
     ARMORS['Harvest Armor'] = { id: 'Harvest Armor', arenaId: 13, sprite: 'arm_harvest', rarity: 'legend', baseArm: 15, blockPct: 64, thanks: true,
         event: { sprite: 'icon_turkey', thanks: true, when: 'NOV 2 - NOV 30, 2026', tag: 'EVENT EXCLUSIVE', title: '2026 THANKSGIVING EVENT', desc: 'This armor is only obtainable in the 2026 Thanksgiving Event', how: 'Defeat THE GREAT GOBBLER in Harvest Fields once to unlock it!' },
-        desc: '+15 Armor, 64% Projectile Block. FEAST: every 60 kills heals you 10%',
+        desc: '+15 Armor, 64% Projectile Block',
         upgrades: ['+4 Armor / +5% Block', '+5 Armor / +10% Block', '+6 Armor / +15% Block', '+10 Armor / +20% Block', 'DEMON FEAST'] };
 
     // ---------- SEASON 2 PASS ----------
@@ -20197,7 +20201,7 @@ var TG = {
     const PU = Player.prototype.upd;
     Player.prototype.upd = function() {
         const r = PU.apply(this, arguments);
-        if(this === GAME.p && GAME.on && this.armorName === 'Harvest Armor' && !this.down) {
+        if(false) { /* v3.18.0: FEAST is now an ARMOR ABILITY (ARMAB) */
             const n = Math.floor((GAME.kills || 0) / 60); if(this._feast == null) this._feast = n;
             if(n > this._feast) { this._feast = n; const h = Math.round(this.mhp * 0.1); this.hp = Math.min(this.mhp, this.hp + h); GAME.dmg('FEAST! +' + h, this.x, this.y - 40, '#ffb02a', true); GAME.spawnParticles(this.x, this.y, '#ffb02a', 10); AU.play(880, 'triangle', 0.15, 0.25); }
         }
@@ -20863,6 +20867,440 @@ var PASS_FINALE = (function() {
         return r;
     };
     return { play, close, preview: () => { const P = SEASON_PASS; play(P.tiers[P.tiers.length - 1].pro, P); }, _step: () => step(), state: () => A };
+})();
+/* ---------- v3.18.0: ARMOR ABILITIES ----------
+   Every armor has its own ability. Kills charge it (the ARMOR box next to the HERO box, bottom right) and it goes off
+   ON ITS OWN when it's full (at least 5 s apart). Better armor = a stronger ability that needs a few more kills.
+   In-run armor level makes it stronger (DEMON: x2 power + 25% fewer kills), every Armory rank +5% power.
+   Off in multiplayer + TRICK OR DEATH. HUD: #ability-wrapper = [ARMOR box][HERO box]; the hero box says PRESS SPACE when ready.
+   Mod menu: ARMOR ABILITIES (TESTING). ---------- */
+var ARMAB = (function() {
+    const GAP = 300; // at least 5 s between two armor abilities
+    const LVM = [1, 1, 1.12, 1.24, 1.36, 1.5, 2];
+    const S = { p: null, fx: [], shots: [], parts: [], frozen: [], flashT: 0, C: {}, E: null, always: false, cv: null };
+
+    // ---- tiny pixel sprites (char grid -> canvas, drawn 2-3x with smoothing off) ----
+    const grid = (rows, pal) => { const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length; const g = c.getContext('2d');
+        rows.forEach((r, y) => { for(let x = 0; x < r.length; x++) { const col = pal[r[x]]; if(col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } } }); return c; };
+    const coin = (f) => { const c = document.createElement('canvas'); c.width = 8; c.height = 8; const g = c.getContext('2d'), hw = [4, 3, 2, 1][f];
+        for(let y = 0; y < 8; y++) { const dy = y - 3.5, ex = Math.round(hw * Math.sqrt(Math.max(0, 1 - dy * dy / 16)) + 0.2); if(ex <= 0) continue;
+            g.fillStyle = '#6a4400'; g.fillRect(4 - ex, y, ex * 2, 1); if(ex > 1 && y > 0 && y < 7) { g.fillStyle = y < 3 ? '#ffe45c' : '#f2b705'; g.fillRect(5 - ex, y, ex * 2 - 2, 1); } }
+        if(hw > 1) { g.fillStyle = '#fffbe0'; g.fillRect(5 - hw, 2, 1, 2); } return c; };
+    let SP = null;
+    const sp = () => SP || (SP = {
+        spike: grid(['k..........', 'kkgggmmll..', 'kkgggmmllww', 'kkgggmmll..', 'k..........'], { k: '#16161e', g: '#5d6472', m: '#9aa3b4', l: '#d6dde9', w: '#ffffff' }),
+        ghost: grid(['...kkkk...', '..kwwwwk..', '.kwwwwwsk.', '.kwbwwbsk.', '.kwbwwbsk.', '.kwwwwwsk.', '.kwwbbwsk.', '.kwwwwwsk.', '.kwwwwssk.', '.kwkwskwk.', '..k.kk.k..'], { k: '#2a1a4a', w: '#eef4ff', s: '#b8a6ff', b: '#150a26' }),
+        star: grid(['...y...', '...w...', 'yyywyyy', '.ywwwy.', '..yoy..', '.yo.oy.', 'y.....y'], { y: '#ffe066', w: '#ffffff', o: '#ff9f1a' }),
+        rock: grid(['.kkk.', 'kmmgk', 'kgmgk', '.kkk.'], { k: '#231d18', g: '#6b5f55', m: '#9a8a7a' }),
+        ice: grid(['.k..', 'kwk.', 'kck.', 'kcwk', 'kcck', 'kcck', '.kk.'], { k: '#1d4a6b', c: '#9fe8ff', w: '#ffffff' }),
+        bark: grid(['kkkkkk', 'kblbbk', 'kbdlbk', 'klbdbk', 'kbdblk', 'kkkkkk'], { k: '#2a160a', b: '#7a4a22', l: '#b07a3e', d: '#4e2e12' }),
+        kernel: grid(['.kk.', 'kyyk', 'kyok', '.kk.'], { k: '#5a3a08', y: '#ffd23a', o: '#e8961a' }),
+        coin: [0, 1, 2, 3].map(coin)
+    });
+
+    // ---- the 10 abilities ----
+    const DEF = {
+        'Wood Armor':         { n: 'BARKSKIN',     kills: 40, col: '#c98a4a', desc: 'Tough bark grows over you and blocks the next 2 hits completely (3 at armor level 3, 4 as DEMON). Lasts 12 seconds.' },
+        'Stone Armor':        { n: 'QUAKE',        kills: 45, col: '#c8b8a0', desc: 'Slams the ground - every monster around you takes damage, gets knocked back and is stunned for a moment.' },
+        'Iron Armor':         { n: 'IRON SPIKES',  kills: 45, col: '#d6dde9', desc: 'Shoots 12 iron spikes out in every direction - each one pierces 3 monsters. More spikes at higher armor levels.' },
+        'Gold Armor':         { n: 'GOLD RUSH',    kills: 50, col: '#ffd700', desc: 'Throws 8 spinning gold coins that hunt down the nearest monsters - and puts some gold in your pocket.' },
+        'Dragon Scale Armor': { n: 'DRAGON FIRE',  kills: 50, col: '#ff6a1a', desc: 'A ring of dragon fire bursts out of you and burns every monster it passes.' },
+        'Spooky Armor':       { n: 'PHANTOMS',     kills: 50, col: '#b48cff', desc: '4 ghosts fly out and haunt the nearest monsters - each one passes through 3 monsters and scares them back.' },
+        'Frost Armor':        { n: 'DEEP FREEZE',  kills: 55, col: '#9fe8ff', desc: 'Freezes every monster near you solid for 2.5 seconds (bosses and elites only slow down).' },
+        'Toxic Armor':        { n: 'PLAGUE CLOUD', kills: 55, col: '#7bff3a', desc: 'A cloud of poison follows you for 5 seconds - every monster inside it gets poisoned.' },
+        'Celestial Armor':    { n: 'STARFALL',     kills: 60, col: '#ffe066', desc: '6 falling stars crash down on the nearest monsters. More stars at higher armor levels.' },
+        'Harvest Armor':      { n: 'FEAST',        kills: 60, col: '#ffb02a', desc: 'Heals you 10% of your max HP (more at higher armor levels).' }
+    };
+    const lvOf = (p) => Math.max(1, Math.min(6, (p && p.armorLevel) || 1));
+    const needOf = (p) => { const a = DEF[p.armorName]; return a ? Math.round(a.kills * (lvOf(p) >= 6 ? 0.75 : 1)) : 0; };
+    const multOf = (p) => { const rank = Math.min(5, ((SaveSystem.d.armors || {})[p.armorName]) || 0); return LVM[lvOf(p)] * (1 + 0.05 * rank); };
+    const powerOf = (p) => { const m = p.mastery || 0, ap = GAME.abilityPower() / (1 + MASTERY_BONUS.abil * m); return ap * multOf(p) * ((p.stats && p.stats.might) || 1); };
+
+    // ---- helpers ----
+    const ok = (e) => e && !e.d && !e.emerge && !e._eaten && !e.todGhost && !e.todNode;
+    const hitE = (e, d, kx, ky) => { if(!ok(e)) return; const a = GAME.dmgSrc, b = GAME.firingWep; GAME.dmgSrc = GAME.firingWep = 'ARMOR'; try { e.hit(d, kx || 0, ky || 0); } finally { GAME.dmgSrc = a; GAME.firingWep = b; } };
+    const near = (x, y, R, n) => { const o = []; for(const e of GAME.es) { if(!ok(e)) continue; const d = (e.x - x) ** 2 + (e.y - y) ** 2; if(d < R * R) o.push([d, e]); } o.sort((a, b) => a[0] - b[0]); return o.slice(0, n).map(q => q[1]); };
+    const zone = (x, y, R, d, push, fn) => { for(const e of GAME.es.slice()) { if(!ok(e)) continue; const dx = e.x - x, dy = e.y - y, r = Math.hypot(dx, dy) || 1; if(r > R) continue; hitE(e, d, e.boss ? 0 : dx / r * push, e.boss ? 0 : dy / r * push); if(fn) fn(e); } };
+    const PCAP = () => (typeof PERF !== 'undefined' && PERF.low) ? 140 : 420;
+    const part = (o) => { if(S.parts.length < PCAP()) S.parts.push(Object.assign({ t: 0, g: 0, sz: 4, life: 20 }, o)); };
+    const burst = (x, y, cols, n, spd, life, sz, g) => { for(let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = spd * (0.4 + Math.random() * 0.8); part({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, c: cols[i % cols.length], life: life * (0.6 + Math.random() * 0.6), sz: sz || 4, g: g || 0 }); } };
+    const ring = (x, y, r0, r1, life, c, sz) => S.fx.push({ k: 'ring', x, y, r0, r1, life, t: 0, c, sz: sz || 4 });
+    const say = (p, a) => GAME.dmg(a.n + '!', p.x, p.y - 52, a.col, true);
+
+    // ---- what each ability does ----
+    const FIRE = {
+        'Wood Armor': (p, P, L) => {
+            p.bark = 2 + (L >= 3 ? 1 : 0) + (L >= 6 ? 1 : 0); p.barkT = 720;
+            ring(p.x, p.y, 50, 18, 16, '#c98a4a', 4); burst(p.x, p.y, ['#7a4a22', '#b07a3e', '#4e2e12'], 14, 3, 18, 4);
+            AU.play(140, 'square', 0.12, 0.25); AU.play(90, 'triangle', 0.2, 0.3);
+        },
+        'Stone Armor': (p, P, L) => {
+            const R = 150 + 10 * (L - 1);
+            zone(p.x, p.y, R, 45 * P, 30, e => { if(!e.boss && !e.elite) e.frozeT = Math.max(e.frozeT || 0, 30); });
+            const cracks = []; for(let i = 0; i < 10; i++) { let a = i / 10 * 6.283 + Math.random() * 0.4, x = 0, y = 0; const pts = []; const len = R * (0.55 + Math.random() * 0.4);
+                for(let d = 0; d < len; d += 6) { a += (Math.random() - 0.5) * 0.5; x += Math.cos(a) * 6; y += Math.sin(a) * 6; pts.push(Math.round(x), Math.round(y)); } cracks.push(pts); }
+            S.fx.push({ k: 'quake', x: p.x, y: p.y, cracks, life: 60, t: 0 });
+            ring(p.x, p.y, 10, R, 16, '#c8b8a0', 6); ring(p.x, p.y, 6, R * 0.6, 12, '#ffffff', 4);
+            for(let i = 0; i < 16; i++) { const a = i / 16 * 6.283, v = 3 + Math.random() * 3; part({ x: p.x + Math.cos(a) * 20, y: p.y + Math.sin(a) * 12, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6 - 3.5, g: 0.28, life: 34, img: 'rock', sz: 10 + (i % 3) * 2 }); }
+            burst(p.x, p.y, ['#8a7a68', '#5a4e44'], 16, 4, 22, 4);
+            GAME.shake = Math.max(GAME.shake, 12); AU.play(60, 'sawtooth', 0.35, 0.6); AU.play(110, 'square', 0.2, 0.35);
+        },
+        'Iron Armor': (p, P, L) => {
+            const n = 12 + 2 * Math.floor((L - 1) / 2) + (L >= 6 ? 2 : 0);
+            for(let i = 0; i < n; i++) { const a = i / n * 6.283; S.shots.push({ k: 'spike', x: p.x + Math.cos(a) * 14, y: p.y + Math.sin(a) * 14, vx: Math.cos(a) * 9.5, vy: Math.sin(a) * 9.5, life: 48, t: 0, dmg: 26 * P, pierce: 3, kb: 6, rad: 7, hit: new Set() }); }
+            ring(p.x, p.y, 8, 46, 10, '#d6dde9', 4);
+            AU.play(1200, 'square', 0.06, 0.2); AU.play(700, 'sawtooth', 0.1, 0.2);
+        },
+        'Gold Armor': (p, P, L) => {
+            const n = 8 + Math.floor(L / 2) + (L >= 6 ? 2 : 0), g = 10 + 2 * L;
+            for(let i = 0; i < n; i++) { const a = i / n * 6.283 + Math.random() * 0.3; S.shots.push({ k: 'coin', x: p.x, y: p.y, vx: Math.cos(a) * 6, vy: Math.sin(a) * 6, life: 150, t: 0, wait: 10, dmg: 34 * P, pierce: 1, kb: 8, rad: 8, hit: new Set(), spd: 8.5 }); }
+            GAME.gold = (GAME.gold || 0) + g; GAME.dmg('+' + g + ' GOLD', p.x, p.y - 32, '#ffd700', false);
+            ring(p.x, p.y, 6, 60, 14, '#ffd700', 4); burst(p.x, p.y, ['#ffe45c', '#fffbe0', '#f2b705'], 12, 3.5, 18, 3);
+            AU.play(1320, 'square', 0.08, 0.18); AU.play(1760, 'square', 0.12, 0.15); AU.play(2093, 'sine', 0.2, 0.12);
+        },
+        'Dragon Scale Armor': (p, P, L) => {
+            S.fx.push({ k: 'fring', x: p.x, y: p.y, r: 16, R: 170 + 10 * (L - 1), life: 26, t: 0, dmg: 55 * P, hit: new Set() });
+            burst(p.x, p.y, ['#ffd23a', '#ff6a1a', '#d8261a'], 16, 3, 18, 4);
+            GAME.shake = Math.max(GAME.shake, 8); AU.play(90, 'sawtooth', 0.4, 0.45); AU.play(180, 'square', 0.25, 0.25);
+        },
+        'Spooky Armor': (p, P, L) => {
+            const n = 4 + Math.floor(L / 3);
+            for(let i = 0; i < n; i++) { const a = i / n * 6.283 - 1.57; S.shots.push({ k: 'ghost', x: p.x, y: p.y, vx: Math.cos(a) * 4, vy: Math.sin(a) * 4, life: 170, t: 0, wait: 16, dmg: 40 * P, pierce: 3, kb: 22, rad: 10, hit: new Set(), spd: 6.5, ph: i }); }
+            ring(p.x, p.y, 8, 70, 18, '#b48cff', 4); burst(p.x, p.y, ['#b48cff', '#eef4ff'], 10, 2, 22, 3);
+            AU.play(440, 'sine', 0.35, 0.18); AU.play(330, 'triangle', 0.5, 0.15); AU.play(660, 'sine', 0.25, 0.08);
+        },
+        'Frost Armor': (p, P, L) => {
+            const R = 200 + 10 * (L - 1), T = 150 + 10 * (L - 1);
+            zone(p.x, p.y, R, 25 * P, 0, e => { if(e.boss || e.elite) e.chillT = Math.max(e.chillT || 0, T); else { e.frozeT = Math.max(e.frozeT || 0, T); if(S.frozen.length < 80) S.frozen.push(e); } });
+            ring(p.x, p.y, 10, R, 18, '#9fe8ff', 6); ring(p.x, p.y, 6, R * 0.7, 14, '#ffffff', 4);
+            for(let i = 0; i < 18; i++) { const a = i / 18 * 6.283, v = 5 + Math.random() * 2; part({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 26, img: 'ice', sz: 12, rot: a + 1.57 }); }
+            AU.play(1800, 'sine', 0.2, 0.15); AU.play(900, 'triangle', 0.35, 0.2); AU.play(2400, 'square', 0.05, 0.08);
+        },
+        'Toxic Armor': (p, P, L) => {
+            S.fx.push({ k: 'cloud', x: p.x, y: p.y, R: 120 + 8 * (L - 1), life: 300, t: 0, dmg: 9 * P });
+            burst(p.x, p.y, ['#7bff3a', '#3ea81c', '#c6ff8a'], 14, 2.5, 26, 5);
+            AU.play(160, 'sawtooth', 0.45, 0.2); AU.play(240, 'sine', 0.3, 0.12);
+        },
+        'Celestial Armor': (p, P, L) => {
+            const n = 6 + Math.floor(L / 2) + (L >= 6 ? 1 : 0), list = near(p.x, p.y, 460, n * 3), pts = [];
+            list.forEach(e => { if(pts.length < n && pts.every(q => (q[0] - e.x) ** 2 + (q[1] - e.y) ** 2 > 50 * 50)) pts.push([e.x, e.y]); });
+            while(pts.length < n) { const a = Math.random() * 6.283, r = 60 + Math.random() * 160; pts.push([p.x + Math.cos(a) * r, p.y + Math.sin(a) * r]); }
+            pts.forEach((q, i) => S.shots.push({ k: 'star', x: q[0], y: q[1], tx: q[0], ty: q[1], delay: i * 7, fall: 24, life: 999, t: 0, dmg: 70 * P, R: 55 + 3 * (L - 1), hit: new Set() }));
+            AU.play(2093, 'sine', 0.4, 0.12); AU.play(1568, 'sine', 0.5, 0.1);
+        },
+        'Harvest Armor': (p, P, L) => {
+            const k = [0, 0.10, 0.11, 0.12, 0.13, 0.14, 0.18][L], h = Math.round(p.mhp * k);
+            p.hp = Math.min(p.mhp, p.hp + h); GAME.dmg('+' + h + ' HP', p.x, p.y - 32, '#00ff66', true);
+            for(let i = 0; i < 16; i++) { const a = i / 16 * 6.283, r = 76; part({ x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r, vx: -Math.cos(a) * r / 18, vy: -Math.sin(a) * r / 18, life: 18, img: 'kernel', sz: 8 }); }
+            for(let i = 0; i < 6; i++) part({ x: p.x - 24 + Math.random() * 48, y: p.y - 6 + Math.random() * 16, vx: 0, vy: -1.2, life: 40, plus: true, c: '#00ff66', sz: 3 });
+            ring(p.x, p.y, 70, 16, 18, '#ffb02a', 4);
+            AU.play(523, 'triangle', 0.15, 0.25); AU.play(659, 'triangle', 0.15, 0.22); AU.play(784, 'triangle', 0.25, 0.22);
+        }
+    };
+    const fire = (p) => {
+        const a = DEF[p.armorName], f = FIRE[p.armorName]; if(!a || !f) return;
+        p.ach = 0; p.agap = GAP; S.flashT = 45;
+        f(p, powerOf(p), lvOf(p)); say(p, a);
+    };
+
+    // ---- per frame (from Player.upd, only for your own hero) ----
+    const reset = (p) => { S.p = p; S.fx = []; S.shots = []; S.parts = []; S.frozen = []; S.flashT = 0; };
+    const tick = (p) => {
+        if(p !== GAME.p || !GAME.on || GAME.mp || GAME.tod) return;
+        if(S.p !== p) reset(p);
+        const k = GAME.kills || 0; if(p._lk == null || k < p._lk) p._lk = k;
+        const a = DEF[p.armorName], need = a ? needOf(p) : 0;
+        if(a) p.ach = Math.min(need, (p.ach || 0) + (k - p._lk));
+        p._lk = k;
+        if(p.agap > 0) p.agap--;
+        if(a && S.always && !(p.agap > 0)) p.ach = need;
+        if(a && p.ach >= need && !(p.agap > 0) && !p.down && p.hp > 0) fire(p);
+        if(p.barkT > 0 && --p.barkT <= 0 && p.bark > 0) { p.bark = 0; burst(p.x, p.y, ['#7a4a22', '#b07a3e'], 10, 2.5, 20, 4); }
+        if(S.flashT > 0) S.flashT--;
+        updFx(p); updShots(); updParts();
+    };
+    const updParts = () => { for(const q of S.parts) { q.t++; q.x += q.vx; q.y += q.vy; q.vy += q.g; if(!q.img && !q.plus) { q.vx *= 0.93; q.vy *= 0.93; } } S.parts = S.parts.filter(q => q.t < q.life); };
+    const updFx = (p) => {
+        for(const f of S.fx) {
+            f.t++;
+            if(f.k === 'fring') { // dragon fire: the ring burns whatever it passes
+                f.r = 16 + (f.R - 16) * Math.min(1, f.t / 22);
+                for(const e of GAME.es.slice()) { if(!ok(e) || f.hit.has(e)) continue; const dx = e.x - f.x, dy = e.y - f.y, d = Math.hypot(dx, dy) || 1; if(d <= f.r + (e.w || 30) / 2) { f.hit.add(e); hitE(e, f.dmg, e.boss ? 0 : dx / d * 12, e.boss ? 0 : dy / d * 12); part({ x: e.x, y: e.y - 6, vx: 0, vy: -1.4, c: '#ffd23a', life: 16, sz: 4 }); } }
+                const n = (typeof PERF !== 'undefined' && PERF.low) ? 3 : 8; for(let i = 0; i < n; i++) { const a = Math.random() * 6.283; part({ x: f.x + Math.cos(a) * f.r, y: f.y + Math.sin(a) * f.r, vx: Math.cos(a) * 0.8, vy: -0.8 - Math.random(), c: ['#ffd23a', '#ff6a1a', '#d8261a'][i % 3], life: 14 + Math.random() * 8, sz: 4 + (i % 2) * 2 }); }
+            } else if(f.k === 'cloud') { // plague cloud: follows you, poisons everything inside
+                f.x = p.x; f.y = p.y;
+                if(f.t % 20 === 1) { const a = GAME.dmgSrc; GAME.dmgSrc = 'ARMOR'; for(const e of GAME.es) { if(ok(e) && (e.x - f.x) ** 2 + (e.y - f.y) ** 2 < f.R * f.R) GAME.applyPoison(e, f.dmg, 70); } GAME.dmgSrc = a; }
+            }
+        }
+        S.fx = S.fx.filter(f => f.t < f.life);
+        S.frozen = S.frozen.filter(e => !e.d && e.frozeT > 0);
+    };
+    const target = (s) => { let best = null, bd = 380 * 380; for(const e of GAME.es) { if(!ok(e) || s.hit.has(e)) continue; const d = (e.x - s.x) ** 2 + (e.y - s.y) ** 2; if(d < bd) { bd = d; best = e; } } return best; };
+    const updShots = () => {
+        for(const s of S.shots) {
+            s.t++;
+            if(s.k === 'star') { // falls from the sky onto the marked spot
+                if(s.t < s.delay + s.fall) continue;
+                const a = GAME.dmgSrc; zone(s.tx, s.ty, s.R, s.dmg, 10); GAME.dmgSrc = a;
+                ring(s.tx, s.ty, 6, s.R, 12, '#ffe066', 4); ring(s.tx, s.ty, 4, s.R * 0.55, 10, '#ffffff', 4);
+                burst(s.tx, s.ty, ['#ffe066', '#ffffff', '#ff9f1a'], 12, 4, 18, 3);
+                GAME.shake = Math.max(GAME.shake, 4); AU.play(220, 'square', 0.12, 0.2); AU.play(1400, 'sine', 0.1, 0.08);
+                s.life = 0; continue;
+            }
+            s.life--;
+            if((s.k === 'coin' || s.k === 'ghost') && s.t > s.wait) {
+                let e = s.tgt; if(!ok(e) || s.hit.has(e)) { e = target(s); s.tgt = e; }
+                if(e) { const dx = e.x - s.x, dy = e.y - s.y, d = Math.hypot(dx, dy) || 1; s.vx += dx / d * 0.75; s.vy += dy / d * 0.75; }
+                const v = Math.hypot(s.vx, s.vy); if(v > s.spd) { s.vx *= s.spd / v; s.vy *= s.spd / v; }
+            }
+            s.x += s.vx; s.y += s.vy;
+            if(s.k === 'coin' && s.t % 3 === 0) part({ x: s.x, y: s.y, vx: 0, vy: 0, c: '#ffd700', life: 8, sz: 2 });
+            if(s.k === 'ghost' && s.t % 4 === 0) part({ x: s.x, y: s.y + 6, vx: 0, vy: 0.3, c: '#b48cff', life: 12, sz: 3 });
+            const v = Math.hypot(s.vx, s.vy) || 1;
+            for(const e of GAME.es) {
+                if(!ok(e) || s.hit.has(e)) continue; const r = (e.w || 30) / 2 + s.rad;
+                if((e.x - s.x) ** 2 + (e.y - s.y) ** 2 < r * r) {
+                    s.hit.add(e); hitE(e, s.dmg, s.vx / v * s.kb, s.vy / v * s.kb); s.pierce--;
+                    if(s.k === 'coin') { burst(s.x, s.y, ['#ffe45c', '#fffbe0'], 5, 2, 10, 2); AU.play(1600 + Math.random() * 400, 'square', 0.04, 0.06); }
+                    else if(s.k === 'ghost') burst(s.x, s.y, ['#eef4ff', '#b48cff'], 4, 2, 12, 3);
+                    else burst(s.x, s.y, ['#d6dde9', '#5d6472'], 3, 2, 8, 2);
+                    if(s.pierce <= 0) { s.life = 0; break; }
+                }
+            }
+        }
+        S.shots = S.shots.filter(s => s.life > 0);
+    };
+
+    // ---- BARKSKIN soaks up a whole hit ----
+    const PH = Player.prototype.hit;
+    Player.prototype.hit = function(d, a, b) {
+        if(this === GAME.p && this.bark > 0 && !(this.inv > 0) && !this.down && !GAME.mp) {
+            this.bark--; this.inv = 30; if(!this.bark) this.barkT = 0;
+            GAME.dmg(this.bark ? 'BARKSKIN! ' + this.bark + ' LEFT' : 'BARKSKIN BROKE!', this.x, this.y - 30, '#c98a4a', true);
+            burst(this.x, this.y, ['#7a4a22', '#b07a3e', '#4e2e12'], 10, 3, 18, 4);
+            for(let i = 0; i < 3; i++) { const an = Math.random() * 6.283; part({ x: this.x, y: this.y, vx: Math.cos(an) * 3, vy: Math.sin(an) * 2 - 3, g: 0.25, life: 26, img: 'bark', sz: 10 }); }
+            AU.play(160, 'square', 0.08, 0.3); AU.play(95, 'triangle', 0.12, 0.3);
+            return;
+        }
+        return PH.apply(this, arguments);
+    };
+    const PU = Player.prototype.upd;
+    Player.prototype.upd = function() { const r = PU.apply(this, arguments); if(this === GAME.p) { try { tick(this); } catch(e) { console.error(e); } } return r; };
+
+    // ---- drawing (on top of the world, under the HUD) ----
+    const pxRing = (g, x, y, r, c, sz, al) => { if(r < 2 || al <= 0) return; const n = Math.max(10, Math.ceil(6.283 * r / (sz * 1.6))); g.globalAlpha = al; g.fillStyle = c; for(let i = 0; i < n; i++) { const a = i / n * 6.283; g.fillRect(Math.round(x + Math.cos(a) * r - sz / 2), Math.round(y + Math.sin(a) * r - sz / 2), sz, sz); } g.globalAlpha = 1; };
+    const img = (g, c, x, y, w, h, rot, flip) => { g.save(); g.translate(Math.round(x), Math.round(y)); if(rot) g.rotate(rot); if(flip) g.scale(-1, 1); g.drawImage(c, -Math.round(w / 2), -Math.round(h / 2), w, h); g.restore(); };
+    const draw = () => {
+        const p = GAME.p; if(!p || !GAME.on || GAME.cine || GAME.tod || GAME.mp) return;
+        if(!S.fx.length && !S.shots.length && !S.parts.length && !S.frozen.length && !(p.bark > 0)) return;
+        const cv = S.cv || (S.cv = document.getElementById('gameCanvas')); if(!cv) return;
+        const g = cv.getContext('2d'), Z = sp(), cx = p.x - C.W / 2, cy = p.y - C.H / 2, F = GAME.frame || 0;
+        g.save(); g.imageSmoothingEnabled = false;
+        // frozen monsters sit in a pixel ice block
+        for(const e of S.frozen) { const w = Math.round((e.w || 30) * 0.9 + 8), h = Math.round((e.h || e.w || 30) * 0.9 + 8), x = Math.round(e.x - cx - w / 2), y = Math.round(e.y - cy - h / 2), k = Math.min(1, e.frozeT / 20);
+            g.globalAlpha = 0.32 * k; g.fillStyle = '#9fe8ff'; g.fillRect(x, y, w, h); g.globalAlpha = 0.9 * k; g.fillStyle = '#d8f8ff'; g.fillRect(x, y, w, 2); g.fillRect(x, y, 2, h); g.fillStyle = '#3a8fc0'; g.fillRect(x, y + h - 2, w, 2); g.fillRect(x + w - 2, y, 2, h);
+            g.fillStyle = '#ffffff'; g.fillRect(x + 4, y + 4, 4, 2); g.fillRect(x + 4, y + 6, 2, 2); }
+        g.globalAlpha = 1;
+        for(const f of S.fx) {
+            const x = f.x - cx, y = f.y - cy, k = f.t / f.life;
+            if(f.k === 'ring') { const e = Math.min(1, f.t / Math.max(1, f.life * 0.8)); pxRing(g, x, y, f.r0 + (f.r1 - f.r0) * (1 - (1 - e) * (1 - e)), f.c, f.sz, 1 - k); }
+            else if(f.k === 'quake') { g.globalAlpha = Math.min(1, (1 - k) * 1.6); f.cracks.forEach(pts => { for(let i = 0; i < pts.length; i += 2) { if(i / 2 > f.t * 3) break; g.fillStyle = '#1c1611'; g.fillRect(Math.round(x + pts[i] - 2), Math.round(y + pts[i + 1] - 2), 4, 4); g.fillStyle = '#8a7a68'; g.fillRect(Math.round(x + pts[i] - 2), Math.round(y + pts[i + 1] + 2), 4, 1); } }); g.globalAlpha = 1; }
+            else if(f.k === 'fring') { const al = Math.min(1, (1 - k) * 2); pxRing(g, x, y, f.r, '#d8261a', 8, al * 0.8); pxRing(g, x, y, f.r - 4, '#ff6a1a', 6, al); pxRing(g, x, y, f.r - 8, '#ffd23a', 4, al); }
+            else if(f.k === 'cloud') { const al = Math.min(1, f.t / 15, (f.life - f.t) / 30);
+                for(let i = 0; i < 16; i++) { const a = i / 16 * 6.283 + f.t * 0.012 * (i % 2 ? 1 : -1), r = f.R * (0.35 + 0.55 * ((i * 37) % 10) / 10) + Math.sin(f.t * 0.05 + i) * 6, s = 10 + (i % 4) * 4, px = Math.round(x + Math.cos(a) * r - s / 2), py = Math.round(y + Math.sin(a) * r * 0.8 - s / 2);
+                    g.globalAlpha = al * 0.22; g.fillStyle = i % 3 ? '#7bff3a' : '#3ea81c'; g.fillRect(px, py, s, s); g.fillRect(px + 4, py - 4, s - 8, s + 8); g.fillRect(px - 4, py + 4, s + 8, s - 8); }
+                g.globalAlpha = al * 0.5; pxRing(g, x, y, f.R, '#7bff3a', 4, al * 0.45); g.globalAlpha = 1; }
+        }
+        // bark plates circling you
+        if(p.bark > 0) { const n = p.bark, blink = p.barkT < 120 && (F >> 3) % 2;
+            if(!blink) for(let i = 0; i < n; i++) { const a = F * 0.05 + i / n * 6.283; img(g, Z.bark, p.x - cx + Math.cos(a) * 25, p.y - cy + Math.sin(a) * 19 - 4, 14, 14, 0, false); }
+            pxRing(g, p.x - cx, p.y - cy - 2, 26, '#7a4a22', 2, blink ? 0.2 : 0.45); }
+        for(const s of S.shots) {
+            const x = s.x - cx, y = s.y - cy;
+            if(s.k === 'spike') img(g, Z.spike, x, y, 22, 10, Math.atan2(s.vy, s.vx), false);
+            else if(s.k === 'coin') { g.globalAlpha = 0.3; g.fillStyle = '#ffd700'; g.fillRect(Math.round(x - 10), Math.round(y - 10), 20, 20); g.globalAlpha = 1; img(g, Z.coin[[0, 1, 2, 3, 2, 1][(s.t >> 2) % 6]], x, y, 16, 16, 0, false); }
+            else if(s.k === 'ghost') { const bob = Math.round(Math.sin(s.t * 0.25 + s.ph) * 2); g.globalAlpha = 0.25; g.fillStyle = '#b48cff'; g.fillRect(Math.round(x - 14), Math.round(y - 14 + bob), 28, 28); g.globalAlpha = 0.92; img(g, Z.ghost, x, y + bob, 20, 22, 0, s.vx < 0); g.globalAlpha = 1; }
+            else if(s.k === 'star') {
+                const tx = s.tx - cx, ty = s.ty - cy, on = s.t >= s.delay, k = on ? Math.min(1, (s.t - s.delay) / s.fall) : 0;
+                // telegraph: a blinking pixel target on the ground
+                if((F >> 2) % 2 || k > 0.6) { g.fillStyle = '#ffe066'; g.globalAlpha = 0.85; [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([u, v]) => g.fillRect(Math.round(tx + u * 14 - 3), Math.round(ty + v * 9 - 2), 6, 4)); g.globalAlpha = 1; }
+                if(on) { const sy = ty - 190 * (1 - k * k), sx = tx + 50 * (1 - k * k);
+                    for(let i = 1; i <= 5; i++) { g.globalAlpha = 0.5 - i * 0.08; g.fillStyle = i % 2 ? '#ffe066' : '#ffffff'; g.fillRect(Math.round(sx + i * 6 - 3), Math.round(sy - i * 12 - 3), 6, 6); }
+                    g.globalAlpha = 1; img(g, Z.star, sx, sy, 21, 21, k * 4, false); }
+            }
+        }
+        for(const q of S.parts) { const x = q.x - cx, y = q.y - cy, al = 1 - q.t / q.life;
+            if(q.img) { g.globalAlpha = Math.min(1, al * 1.5); img(g, Z[q.img], x, y, q.sz, q.sz * Z[q.img].height / Z[q.img].width, q.rot || q.t * 0.2, false); }
+            else if(q.plus) { g.globalAlpha = al; g.fillStyle = q.c; g.fillRect(Math.round(x - 1), Math.round(y - 4), 3, 9); g.fillRect(Math.round(x - 4), Math.round(y - 1), 9, 3); }
+            else { g.globalAlpha = al; g.fillStyle = q.c; g.fillRect(Math.round(x - q.sz / 2), Math.round(y - q.sz / 2), q.sz, q.sz); } }
+        g.restore();
+    };
+    const GD = GAME.draw;
+    GAME.draw = function() { const r = GD.apply(this, arguments); try { draw(); } catch(e) { console.error(e); } return r; };
+
+    // ---- the hero ability remembers how long its cooldown was (so the HERO box can fill up right) ----
+    const AB = GAME.ability;
+    GAME.ability = function() { const p = GAME.p, a0 = p ? p.acd || 0 : 0; const r = AB.apply(this, arguments); if(p && (p.acd || 0) > a0) p._acdMax = p.acd; return r; };
+
+    // ---- HUD: [ARMOR box][HERO box] ----
+    const css = () => {
+        if(document.getElementById('armab-css')) return;
+        const st = document.createElement('style'); st.id = 'armab-css';
+        st.textContent = `
+        #ability-wrapper { flex-direction: row; align-items: flex-end; gap: 26px; }
+        .abx { position: relative; display: flex; flex-direction: column; align-items: center; gap: 9px; }
+        .abx.none { display: none; }
+        .abx-tag { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); z-index: 6; font-size: 6px; letter-spacing: 1px; line-height: 1.4; padding: 1px 5px; background: #000; white-space: nowrap; pointer-events: none; }
+        .abx-hero .abx-tag { color: #7dfcff; border: 1px solid #05d9e8; }
+        .abx-arm .abx-tag { color: #ffd700; border: 1px solid #ffd700; }
+        .abx-img { position: absolute; left: 50%; top: 42%; width: 40px; height: 40px; margin: -20px 0 0 -20px; image-rendering: pixelated; z-index: 2; pointer-events: none; }
+        .abx-fill { position: absolute; left: 0; bottom: 0; width: 100%; height: 0%; z-index: 1; pointer-events: none; }
+        .abx-st { position: absolute; width: 6px; height: 6px; z-index: 5; border: 1px solid #000; pointer-events: none; }
+        .abx-st.s1 { top: -7px; left: -7px; } .abx-st.s2 { top: -7px; right: -7px; } .abx-st.s3 { bottom: -7px; left: -7px; } .abx-st.s4 { bottom: -7px; right: -7px; }
+        .abx-name.long, #ability-name.long { letter-spacing: -1px; }
+        .abx-name { position: absolute; left: 0; right: 0; bottom: 2px; z-index: 3; font-size: 6px; line-height: 1.3; margin: 0; padding: 2px 1px; text-align: center; background: rgba(0,0,0,0.75); text-shadow: 1px 1px 0 #000; pointer-events: none; }
+        /* HERO: cyan frame, scanlines, your hero, cyan fill that rises while it recharges */
+        #ability-icon { box-sizing: border-box; width: 70px; height: 70px; overflow: visible; justify-content: flex-end; border: 3px solid #05d9e8; background: repeating-linear-gradient(0deg, #08131c 0 4px, #0b1a26 4px 8px); box-shadow: 0 0 0 2px #000, 0 0 0 5px #0b4f5a, 6px 6px 0 5px #000; cursor: help; }
+        #ability-icon #ability-cd { display: none; }
+        #ability-icon #ability-name { position: absolute; left: 0; right: 0; bottom: 2px; z-index: 3; font-size: 6px; line-height: 1.3; margin: 0; padding: 2px 1px; background: rgba(0,0,0,0.75); color: #dffcff; }
+        #ability-icon .abx-fill { background: linear-gradient(180deg, #b9fdff 0 3px, #19c9db 3px 6px, #0a6e7c 6px 100%); opacity: 0.55; }
+        #ability-icon .abx-img { filter: grayscale(0.75) brightness(0.55) drop-shadow(2px 2px 0 #000); }
+        #ability-icon.ready .abx-img { filter: drop-shadow(2px 2px 0 #000); }
+        #ability-icon .abx-st { background: #f0f4fc; }
+        #ability-icon.ready { border-color: #b9fdff; animation: abxHeroRdy 0.9s steps(1) infinite; }
+        #ability-icon.ready .abx-st { background: #05d9e8; }
+        @keyframes abxHeroRdy { 0%, 100% { box-shadow: 0 0 0 2px #000, 0 0 0 5px #05d9e8, 6px 6px 0 5px #000, 0 0 18px rgba(5,217,232,0.75); } 50% { box-shadow: 0 0 0 2px #000, 0 0 0 5px #0b4f5a, 6px 6px 0 5px #000; } }
+        #ability-key { font-size: 7px; padding: 3px 6px; color: #7f8ca8; border: 2px solid #333956; white-space: nowrap; }
+        #ability-key.ready { color: #000; background: #05d9e8; border-color: #b9fdff; animation: abxBlink 0.9s steps(1) infinite; }
+        @keyframes abxBlink { 50% { color: #05d9e8; background: #000; } }
+        /* ARMOR: gold frame like the ARMOR box, diagonal plates, your armor, gold fill that rises with every kill */
+        #armab-icon { position: relative; box-sizing: border-box; width: 70px; height: 70px; border: 3px solid #ffd700; background: repeating-linear-gradient(45deg, #15120a 0 4px, #1f1a0c 4px 8px); box-shadow: 0 0 0 2px #000, 0 0 0 5px #6b5212, 6px 6px 0 5px #000; pointer-events: auto; cursor: help; }
+        #armab-icon .abx-fill { background: linear-gradient(180deg, #fff6b0 0 3px, #ffc21a 3px 6px, #a8780a 6px 100%); opacity: 0.6; }
+        #armab-icon .abx-img { filter: drop-shadow(2px 2px 0 #000); }
+        #armab-icon .abx-name { color: #ffd700; }
+        #armab-icon .abx-st { background: #05d9e8; }
+        #armab-icon.full { animation: abxArmFull 0.5s steps(1) infinite; }
+        @keyframes abxArmFull { 50% { border-color: #ffffff; box-shadow: 0 0 0 2px #000, 0 0 0 5px #ffd700, 6px 6px 0 5px #000, 0 0 18px rgba(255,215,0,0.7); } }
+        #armab-icon.fire { animation: abxArmFire 0.75s steps(5) 1; border-color: #ffffff; }
+        @keyframes abxArmFire { 0% { transform: scale(1.3); filter: brightness(2.4); } 100% { transform: scale(1); filter: brightness(1); } }
+        #armab-key { font-size: 7px; padding: 3px 6px; color: #ffd700; background: #000; border: 2px solid #6b5212; box-shadow: 2px 2px 0 #000; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
+        #armab-key.full { color: #000; background: #ffd700; border-color: #fff6b0; text-shadow: none; }
+        #armab-key.fire { color: #000; background: #ffffff; border-color: #ffd700; text-shadow: none; }
+        .abx-arm.demon .abx-tag { color: #ff6b9a; border-color: #ff2a6d; }
+        .abx-arm.demon #armab-icon { border-color: #ff2a6d; box-shadow: 0 0 0 2px #000, 0 0 0 5px #7a0a24, 6px 6px 0 5px #000; }
+        .abx-arm.demon #armab-icon .abx-fill { background: linear-gradient(180deg, #ffc2d2 0 3px, #ff2a6d 3px 6px, #8a0a2a 6px 100%); }
+        .abx-arm.demon #armab-icon .abx-name { color: #ff6b9a; }
+        .abx-arm.demon #armab-key { color: #ff6b9a; border-color: #7a0a24; }
+        `;
+        document.head.appendChild(st);
+    };
+    const STUDS = '<i class="abx-st s1"></i><i class="abx-st s2"></i><i class="abx-st s3"></i><i class="abx-st s4"></i>';
+    const ensureHud = () => {
+        if(S.E && S.E.box.isConnected) return S.E;
+        const w = document.getElementById('ability-wrapper'), hi = document.getElementById('ability-icon'), hk = document.getElementById('ability-key'); if(!w || !hi || !hk) return null;
+        css();
+        const hero = document.createElement('div'); hero.className = 'abx abx-hero'; hero.innerHTML = '<span class="abx-tag">HERO</span>';
+        if(!document.getElementById('ability-img')) hi.insertAdjacentHTML('afterbegin', '<img class="abx-img" id="ability-img" alt=""><div class="abx-fill" id="ability-fill"></div>' + STUDS);
+        hero.appendChild(hi); hero.appendChild(hk);
+        const arm = document.createElement('div'); arm.className = 'abx abx-arm none'; arm.id = 'armab-box';
+        arm.innerHTML = '<span class="abx-tag">ARMOR</span><div id="armab-icon"><img class="abx-img" id="armab-img" alt=""><div class="abx-fill" id="armab-fill"></div><div class="abx-name" id="armab-name"></div>' + STUDS + '</div><div id="armab-key">AUTO</div>';
+        w.innerHTML = ''; w.appendChild(arm); w.appendChild(hero);
+        const $ = (id) => document.getElementById(id);
+        if(typeof TIP !== 'undefined' && TIP.bind) TIP.bind($('armab-icon'), () => ARMAB.tip());
+        S.C = {};
+        return S.E = { box: arm, ai: $('armab-icon'), af: $('armab-fill'), an: $('armab-name'), ak: $('armab-key'), aimg: $('armab-img'), hi, hk, hf: $('ability-fill'), himg: $('ability-img') };
+    };
+    const hud = () => {
+        const p = GAME.p; if(!p || !p.data) return; const E = ensureHud(); if(!E) return; const C = S.C;
+        const put = (k, v, fn) => { if(C[k] !== v) { C[k] = v; fn(v); } };
+        // hero
+        const hmax = Math.max(1, p._acdMax || ABILITY_CD[p.data.id] || 600, p.acd || 0), hr = !(p.acd > 0), hf = hr ? 1 : Math.max(0, 1 - p.acd / hmax);
+        put('hf', Math.floor(hf * 16), v => { E.hf.style.height = (v / 16 * 100) + '%'; });
+        put('hr', hr, v => { E.hi.classList.toggle('ready', v); E.hk.classList.toggle('ready', v); });
+        put('hk', hr ? 'PRESS SPACE' : 'SPACE ' + Math.ceil(p.acd / (p.acdRate || 1) / 60) + 's', v => { E.hk.textContent = v; });
+        put('himg', p.data.id, v => { const a = ASSETS['h_' + v]; if(a) E.himg.src = a.src; const nm = document.getElementById('ability-name'); if(nm) nm.classList.toggle('long', String(p.data.abil || '').length > 9); });
+        // armor
+        const a = (!GAME.mp && !GAME.tod) ? DEF[p.armorName] : null;
+        put('ab', a ? p.armorName : '', v => { E.box.classList.toggle('none', !v); });
+        if(!a) return;
+        const need = needOf(p), ch = Math.min(need, p.ach || 0), st = S.flashT > 0 ? 2 : (ch >= need ? 1 : 0);
+        put('af', st === 2 ? 0 : Math.floor(ch / need * 16), v => { E.af.style.height = (v / 16 * 100) + '%'; });
+        put('an', a.n, v => { E.an.textContent = v; E.an.classList.toggle('long', v.length > 9); });
+        put('aimg', p.armorName, v => { const s = ASSETS[ARMORS[v].sprite]; if(s) E.aimg.src = s.src; });
+        put('ad', lvOf(p) >= 6, v => { E.box.classList.toggle('demon', v); });
+        put('as', st, v => { E.ai.classList.toggle('fire', v === 2); E.ai.classList.toggle('full', v === 1); E.ak.classList.toggle('fire', v === 2); E.ak.classList.toggle('full', v === 1); });
+        put('ak', st === 2 ? 'ACTIVATED!' : st === 1 ? 'READY' : 'AUTO ' + ch + '/' + need, v => { E.ak.textContent = v; });
+    };
+    const UH = ui.updHUD;
+    ui.updHUD = function() { const r = UH.apply(this, arguments); try { hud(); } catch(e) { console.error(e); } return r; };
+    const UA = ui.updateAbilityIcon;
+    ui.updateAbilityIcon = function() { const r = UA.apply(this, arguments); S.C = {}; return r; };
+
+    // ---- run saves keep the charge ----
+    const tip = () => {
+        const p = GAME.p; if(!p) return null; const a = DEF[p.armorName];
+        if(!a) return TIP.simple('ARMOR ABILITY', '#ffd700', 'Wear armor to get its ability.', []);
+        const need = needOf(p), ch = Math.min(need, p.ach || 0);
+        let out = TIP.head(ARMORS[p.armorName].sprite, a.n, 'ARMOR ABILITY &#9670; GOES OFF ON ITS OWN', '#ffd700');
+        out += TIP.note(a.desc) + TIP.sep();
+        out += TIP.row('CHARGE', ch + ' / ' + need + ' KILLS', ch >= need ? '#00ff66' : '#ffd700');
+        out += TIP.row('POWER', 'x' + multOf(p).toFixed(2), '#ff9a2a');
+        if(p.bark > 0) out += TIP.row('BARK LEFT', p.bark + ' HITS', '#c98a4a');
+        out += TIP.note('Kill monsters to fill it up - it fires by itself when it\'s full. Armor level-ups make it stronger. DEMON armor: 2x power and 25% fewer kills. Every Armory rank: +5% power.');
+        return out;
+    };
+    const detailHtml = (name, lvl) => {
+        const a = DEF[name]; if(!a) return '';
+        const need = Math.round(a.kills * ((lvl || 1) >= 6 ? 0.75 : 1));
+        return `<div style="margin-top:8px; padding:6px 8px; background:#15120a; border:2px solid #6b5212; box-shadow:2px 2px 0 #000; text-align:left;">
+            <div style="color:#ffd700; font-size:8px; margin-bottom:4px; text-shadow:1px 1px 0 #000;">&#9670; ARMOR ABILITY: ${a.n}</div>
+            <div style="color:#cfd6e6; font-size:7px; line-height:1.5;">${a.desc}</div>
+            <div style="color:#05d9e8; font-size:7px; margin-top:4px;">CHARGES FROM ${need} KILLS - GOES OFF ON ITS OWN${(lvl || 1) > 1 ? ' - POWER x' + LVM[Math.min(6, lvl)].toFixed(2) : ''}</div></div>`;
+    };
+
+    // ---- mod menu: ARMOR ABILITIES (TESTING) ----
+    const mod = {
+        wear: (name) => { const p = GAME.p; if(!p || !GAME.on) return ui.toast('START A RUN FIRST', 'error'); const sel = document.getElementById('adm-armlv'), lv = sel ? parseInt(sel.value) || 1 : (p.armorLevel || 1);
+            p.equipArmor(name, lv); p.ach = needOf(p); p.agap = 0; LOADOUT_HUD.reset(); S.C = {}; ADMIN.resume(); ui.updHUD(); },
+        fill: () => { const p = GAME.p; if(!p || !DEF[p.armorName]) return ui.toast('WEAR ARMOR FIRST', 'error'); p.ach = needOf(p); p.agap = 0; ADMIN.resume(); },
+        always: () => { S.always = !S.always; ADMIN.refresh ? ADMIN.refresh() : ADMIN.render(); },
+        hero: () => { const p = GAME.p; if(!p) return; p.acd = 0; ADMIN.resume(); }
+    };
+    const AR = ADMIN.render;
+    ADMIN.render = function() {
+        AR.apply(this, arguments);
+        const el = document.getElementById('admin-panel'); if(!el) return;
+        const b = this.b.bind(this), p = GAME.p, inRun = GAME.on && p && !GAME.mp && !GAME.tod;
+        let h = `<div class="adm-sec">ARMOR ABILITIES (TESTING)${inRun && DEF[p.armorName] ? ' - WEARING ' + p.armorName.toUpperCase() + ' LV ' + lvOf(p) + ' - ' + DEF[p.armorName].n + ' ' + Math.min(needOf(p), p.ach || 0) + '/' + needOf(p) + ' KILLS' : ''}</div>`;
+        if(inRun) {
+            const lv = lvOf(p), opts = [1, 2, 3, 4, 5, 6].map(l => `<option value="${l}" ${l === lv ? 'selected' : ''}>${l === 6 ? 'LV 6 (DEMON)' : 'LV ' + l}</option>`).join('');
+            h += `<div class="adm-row"><span>WEAR + FIRE NOW:</span><select id="adm-armlv">${opts}</select>` + Object.keys(DEF).map(n => b(DEF[n].n, "ARMAB.mod.wear('" + n + "')", p.armorName === n ? 'btn-gold' : '')).join('') + `</div>`;
+            h += `<div class="adm-row">` + b('FIRE ARMOR ABILITY NOW', 'ARMAB.mod.fill()', 'btn-green') + b('ALWAYS CHARGED' + (S.always ? ': ON' : ''), 'ARMAB.mod.always()', S.always ? 'on' : '') + b('HERO ABILITY READY NOW', 'ARMAB.mod.hero()', 'btn-cyan') + `<span>Wear any armor at any level, fire its ability, or keep it charged (fires every 5 s).</span></div>`;
+        } else h += `<div class="adm-row"><span>Start a battle and press M: wear any armor at any level, fire its ability right away, keep it always charged, and refill the hero ability.</span></div>`;
+        const box = document.createElement('div'); box.innerHTML = h;
+        const run = [...el.querySelectorAll('.adm-sec')].find(s => /^THIS RUN/.test(s.textContent));
+        if(run) [...box.childNodes].forEach(n => run.parentNode.insertBefore(n, run)); else [...box.childNodes].forEach(n => el.appendChild(n));
+    };
+
+    return { DEF, tick, draw, hud, tip, detailHtml, mod, needOf, nameOf: (n) => DEF[n] ? DEF[n].n : null, fire: () => GAME.p && fire(GAME.p), _S: S };
+})();
+/* v3.18.0 update-log picture (fx 'armor'): the armors circle the hero, gold + cyan pixel shockwaves, stars falling on the monsters */
+(function() {
+    const UD = UPDART.draw;
+    UPDART.draw = function(g, art, t) {
+        UD.apply(this, arguments);
+        if(!art || art.fx !== 'armor') return;
+        const hx = 170, hy = 112, ks = ['arm_wood', 'arm_stone', 'arm_iron', 'arm_gold', 'arm_dragon', 'arm_frost', 'arm_toxic', 'arm_celestial'];
+        for(let j = 0; j < 2; j++) { const k = (t * 0.012 + j * 0.5) % 1, r = 20 + k * 110, n = Math.ceil(r * 0.9); g.globalAlpha = (1 - k) * 0.8; g.fillStyle = j ? '#05d9e8' : '#ffd700';
+            for(let i = 0; i < n; i++) { const a = i / n * 6.283; g.fillRect(Math.round(hx + Math.cos(a) * r - 2), Math.round(hy + 4 + Math.sin(a) * r * 0.55 - 2), 4, 4); } }
+        ks.forEach((k, i) => { const c = ASSET_CVS[k] || (ASSETS[k] && ASSETS[k].complete ? ASSETS[k] : null); if(!c) return; const a = t * 0.02 + i / ks.length * 6.283, x = hx + Math.cos(a) * 86, y = hy + 2 + Math.sin(a) * 46;
+            g.globalAlpha = Math.sin(a) < 0 ? 0.65 : 1; g.drawImage(c, Math.round(x - 14), Math.round(y - 14), 28, 28); });
+        [[372, 150], [458, 104], [540, 158]].forEach(([tx, ty], i) => { const k = (t * 0.014 + i * 0.33) % 1;
+            if(k < 0.8) { const q = k / 0.8, sx = tx + 40 * (1 - q), sy = ty - 90 * (1 - q); g.globalAlpha = 1; g.fillStyle = '#ffe066'; g.fillRect(Math.round(sx - 6), Math.round(sy - 2), 12, 4); g.fillRect(Math.round(sx - 2), Math.round(sy - 6), 4, 12); g.fillStyle = '#fff'; g.fillRect(Math.round(sx - 2), Math.round(sy - 2), 4, 4);
+                for(let m = 1; m < 4; m++) { g.globalAlpha = 0.5 - m * 0.12; g.fillStyle = '#ffe066'; g.fillRect(Math.round(sx + m * 6 - 2), Math.round(sy - m * 12 - 2), 4, 4); } }
+            else { const q = (k - 0.8) / 0.2, r = 6 + q * 34, n = 16; g.globalAlpha = 1 - q; g.fillStyle = '#ffe066'; for(let m = 0; m < n; m++) { const a = m / n * 6.283; g.fillRect(Math.round(tx + Math.cos(a) * r - 2), Math.round(ty + Math.sin(a) * r * 0.6 - 2), 4, 4); } } });
+        g.globalAlpha = 1;
+    };
 })();
 /* ---------- INVENTORY (v3.14.0): special items only (event items you can't get any other way) ---------- */
 var INVENTORY = {
@@ -21559,6 +21997,17 @@ function applyGearUpgrade(type, key, amount) {
    art: { map, hero, fx: 'beams'|'skulls'|'swarm'|'chest'|'stack'|'rift'|'pumpkins'|'slash'|'duo', boss, foes: [...], extra, banner, bannerCol, seed } */
 var UPDATE_LOGS = [
     {
+        date: "November 3, 2026",
+        version: "v3.18.0",
+        art: { map: 12, hero: 'h_knight', fx: 'armor', foes: ['e_star_wisp', 'e_void_shade', 'e_star_knight'], banner: 'ARMOR ABILITIES', bannerCol: '#ffd700', seed: 18 },
+        notes: [
+            "ARMOR ABILITIES: Every armor now has its own special ability! Kill monsters to charge it up - when it's full it goes off ALL BY ITSELF. Better armor = a stronger ability. Armor level-ups in a run make it stronger, DEMON armor doubles it (and charges faster), and every Armory rank adds 5% power.",
+            "THE 10 ARMOR ABILITIES: WOOD - BARKSKIN (bark blocks your next 2 hits). STONE - QUAKE (ground slam that knocks back + stuns). IRON - IRON SPIKES (spikes fly out in every direction). GOLD - GOLD RUSH (homing gold coins + bonus gold). DRAGON SCALE - DRAGON FIRE (a ring of fire bursts out). SPOOKY - PHANTOMS (ghosts haunt the nearest monsters). FROST - DEEP FREEZE (monsters around you freeze solid). TOXIC - PLAGUE CLOUD (a poison cloud follows you). CELESTIAL - STARFALL (stars crash down on monsters). HARVEST - FEAST (heals you).",
+            "NEW ABILITY BOXES: Bottom right there are now two boxes side by side. The gold ARMOR box fills up with every kill and flashes when your armor ability goes off. The blue HERO box shows your hero, fills back up while your hero ability recharges and says PRESS SPACE when it's ready.",
+            "ARMORY + BATTLE SCREEN: Every armor shows its ability in the Armory and in CHANGE ARMOR. The results screen after a battle shows how much damage your armor ability did."
+        ]
+    },
+    {
         date: "November 2, 2026",
         version: "v3.17.5",
         art: { map: 13, hero: 'h_gobblin', fx: 'pumpkins', foes: ['e_turkey', 'e_crow', 'e_cornling'], boss: 'e_gobbler', banner: 'THE GREAT GOBBLE', bannerCol: '#ff9a2a', seed: 42 },
@@ -22140,6 +22589,7 @@ var TIP = {
         if(lvl < 6) out += this.next('NEXT: ' + (lvl + 1 === 6 ? 'DEMON EVOLUTION: ' : '') + (a.upgrades[lvl - 1] || '+Armor'));
         else out += this.note('FULLY EVOLVED');
         if(rank > 0) out += this.note(`ARMORY RANK ${rank}/5: +${rank} ARMOR, +${rank}% BLOCK`);
+        if(typeof ARMAB !== 'undefined' && ARMAB.nameOf(p.armorName)) out += this.sep() + this.row('ARMOR ABILITY', ARMAB.nameOf(p.armorName), '#ffd700') + this.note(ARMAB.DEF[p.armorName].desc);
         return out;
     },
     passiveTotal: function(pd, lvl) {

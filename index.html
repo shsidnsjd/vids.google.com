@@ -11246,7 +11246,7 @@ function showUnlocks(m) {
             <div style="display:flex; flex-direction:column; gap:4px">
                 <span style="font-size:11px; font-weight:bold">${u.n}</span>
                 <div style="display:flex; gap:6px; align-items:center;">
-                    <span style="font-size:8px; color:var(--c-${data.rarity}); font-weight:bold">${data.rarity.toUpperCase()}</span>
+                    <span style="font-size:8px; color:var(--c-${data.rarity}); font-weight:bold">${RARITY_NAMES[data.rarity] || data.rarity.toUpperCase()}</span>
                     <span style="font-size:7px; background:#2c3e50; padding:1px 4px; border-radius:2px; color:#fff">${typeLabel}</span>
                 </div>
             </div>
@@ -11544,7 +11544,7 @@ function renderHeroes() {
     ['common','uncommon','rare','epic','legend'].forEach(r => {
         const list = HEROES.filter(h=>h.r===r);
         if(list.length>0) {
-            const head = document.createElement('div'); head.className='rarity-header'; head.innerText=r.toUpperCase(); c.appendChild(head);
+            const head = document.createElement('div'); head.className='rarity-header'; head.innerText=RARITY_NAMES[r] || r.toUpperCase(); c.appendChild(head);
             const row = document.createElement('div'); row.className='hero-grid';
             list.forEach(h => {
                 const has=SaveSystem.d.heroes.includes(h.id); const sel=SaveSystem.d.curHero===h.id;
@@ -11651,7 +11651,7 @@ function renderLoadout() {
             d.innerHTML = `
                 <div class="wep-img-wrap"><img src="${src}" class="wep-img"></div>
                 <div class="wep-name" style="color:${unlocked?'#fff':'#666'}">${itemKey}</div>
-                <div class="rarity-tag">${data.rarity.toUpperCase()}</div>
+                <div class="rarity-tag">${RARITY_NAMES[data.rarity] || data.rarity.toUpperCase()}</div>
                 ${typeBadge}
                 <div class="wep-status-pill" style="color:${statusColor}">${statusText}</div>`;
             
@@ -11693,7 +11693,7 @@ function renderLoadout() {
             d.innerHTML = `
                 <div class="wep-img-wrap"><img src="${src}" class="wep-img"></div>
                 <div class="wep-name" style="color:${unlocked?'#fff':'#666'}">${itemKey}</div>
-                <div class="rarity-tag" style="color:#ffd700;">FORGED LEGEND</div>
+                <div class="rarity-tag" style="color:#ffd700;">FORGED LEGENDARY</div>
                 <div class="type-badge-pill type-badge-weapon">&#9876; WEAPON</div>
                 <div class="wep-status-pill" style="color:${statusColor}">${statusText}</div>`;
             
@@ -11776,7 +11776,7 @@ function renderLoadout() {
                 ${eventBadgeHTML(data.event)}
                 <div class="wep-img-wrap"><img src="${src}" class="wep-img"></div>
                 <div class="wep-name" style="color:${unlocked ? '#fff' : '#666'}">${itemKey}</div>
-                <div class="rarity-tag" style="color:#ff8500;">EVENT LEGEND</div>
+                <div class="rarity-tag" style="color:#ff8500;">EVENT LEGENDARY</div>
                 ${isArmor ? '<div class="type-badge-pill type-badge-armor">&#9878; ARMOR</div>' : '<div class="type-badge-pill type-badge-weapon">&#9876; WEAPON</div>'}
                 <div class="wep-status-pill" style="color:${statusColor}">${statusText}</div>`;
             d.onclick = () => { AU.ui(); ui.selectedWep = itemKey; renderLoadout(); showDetail(data, unlocked, isArmor ? 'armor' : 'weapon', itemKey); };
@@ -11806,7 +11806,7 @@ function showDetail(item, owned, type, name) {
 
         const myM = owned ? BARRACKS.mastery(item.id) : 0;
         right.innerHTML = `<h2 style="color:${owned?'#fff':'#555'}; display:flex; align-items:center; gap:8px;">${item.n} ${titleBadgeHTML}</h2>
-                           <div style="color:${RARITY_COLORS[item.r] || 'gold'};margin-bottom:6px">${item.r.toUpperCase()} HERO${owned ? ' &#9670; MASTERY ' + myM + ' / ' + MASTERY_MAX : ''}</div>
+                           <div style="color:${RARITY_COLORS[item.r] || 'gold'};margin-bottom:6px">${RARITY_NAMES[item.r] || item.r.toUpperCase()} HERO${owned ? ' &#9670; MASTERY ' + myM + ' / ' + MASTERY_MAX : ''}</div>
                            ${heroEventBanner}
                            <div style="font-size:8px;color:#aaa;line-height:1.7;margin-bottom:6px">${item.desc}</div>
                            <div class="star-btn-row" id="hero-m-btns"></div>
@@ -21998,13 +21998,14 @@ function applyGearUpgrade(type, key, amount) {
 var UPDATE_LOGS = [
     {
         date: "November 3, 2026",
-        version: "v3.18.0",
+        version: "v3.18.1",
         art: { map: 12, hero: 'h_knight', fx: 'armor', foes: ['e_star_wisp', 'e_void_shade', 'e_star_knight'], banner: 'ARMOR ABILITIES', bannerCol: '#ffd700', seed: 18 },
         notes: [
             "ARMOR ABILITIES: Every armor now has its own special ability! Kill monsters to charge it up - when it's full it goes off ALL BY ITSELF. Better armor = a stronger ability. Armor level-ups in a run make it stronger, DEMON armor doubles it (and charges faster), and every Armory rank adds 5% power.",
             "THE 10 ARMOR ABILITIES: WOOD - BARKSKIN (bark blocks your next 2 hits). STONE - QUAKE (ground slam that knocks back + stuns). IRON - IRON SPIKES (spikes fly out in every direction). GOLD - GOLD RUSH (homing gold coins + bonus gold). DRAGON SCALE - DRAGON FIRE (a ring of fire bursts out). SPOOKY - PHANTOMS (ghosts haunt the nearest monsters). FROST - DEEP FREEZE (monsters around you freeze solid). TOXIC - PLAGUE CLOUD (a poison cloud follows you). CELESTIAL - STARFALL (stars crash down on monsters). HARVEST - FEAST (heals you).",
             "NEW ABILITY BOXES: Bottom right there are now two boxes side by side. The gold ARMOR box fills up with every kill and flashes when your armor ability goes off. The blue HERO box shows your hero, fills back up while your hero ability recharges and says PRESS SPACE when it's ready.",
-            "ARMORY + BATTLE SCREEN: Every armor shows its ability in the Armory and in CHANGE ARMOR. The results screen after a battle shows how much damage your armor ability did."
+            "ARMORY + BATTLE SCREEN: Every armor shows its ability in the Armory and in CHANGE ARMOR. The results screen after a battle shows how much damage your armor ability did.",
+            "LEGENDARY: The hero list, hero info and the Armory said LEGEND instead of LEGENDARY - fixed everywhere."
         ]
     },
     {
